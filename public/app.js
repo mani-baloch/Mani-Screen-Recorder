@@ -1,4 +1,35 @@
 
+function isMobile() {
+  return /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth <= 768);
+}
+let currentFacingMode = 'user';
+const flipCamBtn = document.getElementById('flipCamBtn');
+if (flipCamBtn) {
+  flipCamBtn.addEventListener('click', async () => {
+    currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+    if (state.webcamStream) {
+      state.webcamStream.getTracks().forEach(t => t.stop());
+      state.webcamStream = null;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: currentFacingMode },
+        audio: false
+      });
+      state.webcamStream = stream;
+      webcamDisplayVideo.srcObject = stream;
+      fullWebcamDisplayVideo.srcObject = stream;
+      await webcamDisplayVideo.play();
+      await fullWebcamDisplayVideo.play();
+      state.webcamVisible = true;
+      switchScene(state.activeScene);
+    } catch (e) {
+      console.warn('Flip camera error:', e);
+    }
+  });
+}
+
+
 // ========================================================
 // PWA & Service Worker Registration
 // ========================================================
@@ -543,7 +574,11 @@ async function setupMicAudio(deviceId = null) {
     };
     if (deviceId) audioConstraints.deviceId = { exact: deviceId };
 
-    state.micStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+    try {
+      state.micStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+    } catch (errConstraint) {
+      state.micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    }
 
     if (state.micSourceNode) {
       try { state.micSourceNode.disconnect(); } catch (e) { }
@@ -762,11 +797,22 @@ function stopWebcam() {
 async function selectScreen() {
   ensureAudioContext();
 
+  if (!navigator.mediaDevices || typeof navigator.mediaDevices.getDisplayMedia !== 'function') {
+    alert("Mobile Browser: Mobile OS security policies doosri apps ki screen capture restrict karti hain. Aapka Camera & Mic recording mode on kar diya gaya hai!");
+    switchScene('cam-only');
+    if (!state.webcamStream) await startWebcam();
+    return;
+  }
+
+  if (state.screenStream) {
+    state.screenStream.getTracks().forEach(t => t.stop());
+  }
+
+  let stream = null;
   try {
     const idealWidth = state.resolution === '720p' ? 1280 : 1920;
     const idealHeight = state.resolution === '720p' ? 720 : 1080;
-
-    const displayConstraints = {
+    stream = await navigator.mediaDevices.getDisplayMedia({
       video: {
         cursor: 'always',
         frameRate: { ideal: state.fps, max: state.fps },
@@ -774,13 +820,23 @@ async function selectScreen() {
         height: { ideal: idealHeight }
       },
       audio: true
-    };
-
-    if (state.screenStream) {
-      state.screenStream.getTracks().forEach(t => t.stop());
+    });
+  } catch (errDesktop) {
+    try {
+      stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+    } catch (errMobile) {
+      if (errMobile.name === 'NotAllowedError') return;
+      alert("Mobile Browser: Screen capture allow nahi hai. Camera & Mic mode on kiya ja raha hai!");
+      switchScene('cam-only');
+      if (!state.webcamStream) await startWebcam();
+      return;
     }
+  }
 
-    state.screenStream = await navigator.mediaDevices.getDisplayMedia(displayConstraints);
+  if (!stream) return;
+
+  try {
+    state.screenStream = stream;
     screenDisplayVideo.srcObject = state.screenStream;
     await screenDisplayVideo.play();
 
@@ -805,11 +861,8 @@ async function selectScreen() {
 
     switchScene(state.activeScene);
     setTimeout(updateCachedCamBounds, 100);
-
   } catch (err) {
-    if (err.name !== 'NotAllowedError') {
-      console.warn('Screen selection failed:', err);
-    }
+    console.warn('Screen setup error:', err);
   }
 }
 
@@ -885,8 +938,20 @@ async function startRecording() {
   ensureAudioContext();
 
   if (!state.screenStream && !state.webcamStream) {
-    await selectScreen();
-    if (!state.screenStream && !state.webcamStream) return;
+    if (isMobile()) {
+      switchScene('cam-only');
+      const camOk = await startWebcam();
+      if (!camOk && !state.webcamStream) {
+        alert("Mobile recording ke liye camera allow karein!");
+        return;
+      }
+    } else {
+      await selectScreen();
+      if (!state.screenStream && !state.webcamStream) {
+        const camOk = await startWebcam();
+        if (!camOk) return;
+      }
+    }
   }
 
   if (!state.micStream) {
@@ -901,8 +966,12 @@ async function startRecording() {
     finalVideoStream = state.screenStream;
   } else if (state.activeScene === 'cam-only' && state.webcamStream) {
     finalVideoStream = state.webcamStream;
-  } else {
+  } else if (state.screenStream) {
     updateCachedCamBounds();
+    finalVideoStream = startOptimizedCompositor();
+  } else if (state.webcamStream) {
+    finalVideoStream = state.webcamStream;
+  } else {
     finalVideoStream = startOptimizedCompositor();
   }
 
@@ -1285,3 +1354,9 @@ window.addEventListener('resize', () => {
 // Initial Setup
 discoverCameras();
 setupMicAudio();
+
+if (isMobile()) {
+  if (flipCamBtn) flipCamBtn.style.display = 'inline-flex';
+  switchScene('cam-only');
+  startWebcam();
+}
