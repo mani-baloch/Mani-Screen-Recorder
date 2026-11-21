@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>OBS Studio Web Pro - Lightweight &amp; Fast</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <meta name="theme-color" content="#090a10">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="ScreenRec">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+</head>
+<body class="obs-theme">
+  <div class="obs-app">
+    
+    <!-- Top Header Bar -->
+    <header class="obs-menubar">
+      <div class="menubar-left">
+        <div class="obs-logo-pill">
+          <span class="obs-tag">OBS</span>
+          <span class="obs-logo-text">Studio <strong>Pro</strong></span>
+        </div>
+        
+        <!-- Live Quick Scene Switcher Buttons -->
+        <div class="scene-switcher-pills">
+          <button class="scene-pill active" id="pillScreenCam" data-scene="screen-cam" title="Screen + Facecam">
+            <span>🖥️ Screen + Cam</span>
+          </button>
+
+          <button class="scene-pill" id="pillFullCam" data-scene="cam-only" title="Full Webcam Solo">
+            <span>📷 Full Webcam Only</span>
+          </button>
+
+          <button class="scene-pill" id="pillFullScreen" data-scene="screen-only" title="Screen Only">
+            <span>🖥️ Screen Only</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="menubar-right">
+        <!-- Quick Camera Device Selector -->
+        <div class="quick-cam-wrapper">
+          <label for="quickCamSelect">📷</label>
+          <select id="quickCamSelect" class="obs-quick-select" title="Change Camera Device">
+            <option value="">Detecting Cameras...</option>
+          </select>
+        </div>
+
+        <button class="menu-icon-btn install-pwa-btn" id="installPwaBtn" style="display: none;" title="Install as Mobile App">
+          📲 Install App
+        </button>
+        <button class="menu-icon-btn" id="menuSettingsBtn" title="Settings">
+          ⚙️ Settings
+        </button>
+
+        <span class="canvas-res-tag" id="canvasResTag">720p / 30FPS</span>
+      </div>
+    </header>
+
+    <!-- Central Workspace: Zero-Lag Studio Viewport -->
+    <main class="obs-workspace">
+      <div class="viewport-outer">
+        <div class="viewport-header">
+          <div class="viewport-title">
+            <span class="preview-dot"></span>
+            <span>MONITOR</span>
+            <span class="scene-active-indicator" id="sceneIndicatorLabel">Screen + Facecam</span>
+          </div>
+
+          <div class="viewport-tools">
+            <span class="cam-hint">💡 Mouse Wheel / Buttons se Camera chota/bara karein &bull; Drag to move</span>
+            <div class="cam-size-quick-btns">
+              <button class="btn-tool-sm" id="camShrinkBtn" title="Make Camera Smaller">🔍-</button>
+              <button class="btn-tool-sm" id="camEnlargeBtn" title="Make Camera Bigger">🔍+</button>
+              <button class="btn-tool-sm" id="resetCamPosBtn" title="Reset Camera">Reset</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- The Live Monitor Display Area -->
+        <div class="canvas-container" id="canvasContainer">
+          
+          <!-- Dedicated Centered 16:9 Screen Stage (Holds Center Screen & Facecam Overlay) -->
+          <div class="monitor-stage" id="monitorStage">
+          
+          <!-- 1. Screen Video Layer -->
+          <video id="screenDisplayVideo" class="monitor-layer" autoplay playsinline muted></video>
+
+          <!-- 2. Fullscreen Webcam Layer (Visible in cam-only mode) -->
+          <video id="fullWebcamDisplayVideo" class="monitor-layer" autoplay playsinline muted style="display: none; transform: scaleX(-1);"></video>
+
+          <!-- 3. Clean, Borderless Draggable & Resizable Facecam -->
+          <div class="webcam-box" id="webcamBox" style="display: none;" title="Drag anywhere to move. Scroll mouse wheel to resize!">
+            <video id="webcamDisplayVideo" autoplay playsinline muted></video>
+            
+            <!-- Floating Clean Hover Bar for Quick Resize & Move -->
+            <div class="webcam-hover-bar">
+              <span class="webcam-hover-title">📷 Facecam</span>
+              <div class="webcam-hover-actions">
+                <button type="button" class="webcam-size-btn" id="wbShrink" title="Smaller">-</button>
+                <button type="button" class="webcam-size-btn" id="wbEnlarge" title="Bigger">+</button>
+              </div>
+            </div>
+
+            <!-- Single Corner Resize Grip (No 4 handles!) -->
+            <div class="single-resize-grip" id="singleResizeGrip" title="Drag to resize">⤡</div>
+          </div>
+
+          <!-- Empty State (When no screen or camera selected) -->
+          <div class="canvas-empty-state" id="canvasEmptyState">
+            <div class="empty-icon-wrap">
+              <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <rect x="2" y="3" width="20" height="14" rx="2"></rect>
+                <line x1="8" y1="21" x2="16" y2="21"></line>
+                <line x1="12" y1="17" x2="12" y2="21"></line>
+              </svg>
+            </div>
+            <h3>Studio Ready</h3>
+            <p>Screen share karein aur apna webcam on karein:</p>
+            <div class="empty-quick-actions">
+              <button class="obs-btn obs-btn-primary" id="emptySelectScreenBtn">
+                🖥️ Select Screen
+              </button>
+              <button class="obs-btn obs-btn-secondary" id="emptyStartCamBtn">
+                📷 Turn On Facecam
+              </button>
+            </div>
+          </div>
+          </div>
+
+          <!-- 3-Second Countdown Overlay -->
+          <div class="obs-countdown-overlay" id="countdownOverlay" style="display: none;">
+            <div class="obs-countdown-circle">
+              <span id="countdownNum">3</span>
+            </div>
+            <div class="obs-countdown-sub">RECORDING STARTING...</div>
+          </div>
+
+          <!-- Active Offscreen Compositor Canvas (NEVER display:none so Chrome renders frames reliably!) -->
+          <canvas id="recordCanvas" width="1280" height="720" style="position: fixed; top: -9999px; left: -9999px; width: 1280px; height: 720px; opacity: 0; pointer-events: none;"></canvas>
+        </div>
+      </div>
+    </main>
+
+    <!-- OBS Bottom Dock Panels -->
+    <footer class="obs-dock">
+      <!-- 1. Scenes Dock -->
+      <section class="dock-panel dock-scenes">
+        <div class="dock-panel-header">
+          <span>Scenes</span>
+          <span class="dock-badge">Live</span>
+        </div>
+        <div class="dock-panel-body">
+          <ul class="obs-list" id="scenesList">
+            <li class="obs-list-item active" data-scene="screen-cam">
+              <span class="item-name">🖥️ Screen + Cam</span>
+              <span class="scene-active-tag">Active</span>
+            </li>
+            <li class="obs-list-item" data-scene="cam-only">
+              <span class="item-name">📷 Full Webcam (Solo)</span>
+            </li>
+            <li class="obs-list-item" data-scene="screen-only">
+              <span class="item-name">🖥️ Screen Only</span>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- 2. Sources Dock -->
+      <section class="dock-panel dock-sources">
+        <div class="dock-panel-header">
+          <span>Sources</span>
+          <span class="dock-badge" id="activeSourcesCount">0 Active</span>
+        </div>
+        <div class="dock-panel-body">
+          <ul class="obs-list" id="sourcesList">
+            <li class="obs-list-item" id="sourceScreenItem">
+              <span class="source-visibility" id="toggleScreenVis">👁️</span>
+              <span class="item-name">Screen Display</span>
+              <span class="source-status-badge" id="screenStatusBadge">Off</span>
+            </li>
+            <li class="obs-list-item" id="sourceCamItem">
+              <span class="source-visibility" id="toggleCamVis">👁️</span>
+              <span class="item-name">Facecam (Webcam)</span>
+              <span class="source-status-badge" id="camStatusBadge">Off</span>
+            </li>
+            <li class="obs-list-item" id="sourceMicItem">
+              <span class="source-visibility" id="toggleMicVis">👁️</span>
+              <span class="item-name">Microphone Voice</span>
+              <span class="source-status-badge on" id="micStatusBadge">Active</span>
+            </li>
+          </ul>
+        </div>
+        <div class="dock-panel-footer">
+          <button class="dock-btn-icon" id="quickAddScreenBtn">+ 🖥️ Screen</button>
+          <button class="dock-btn-icon" id="quickAddCamBtn">+ 📷 Cam</button>
+        </div>
+      </section>
+
+      <!-- 3. Audio Mixer Dock -->
+      <section class="dock-panel dock-mixer">
+        <div class="dock-panel-header">
+          <span>Audio Mixer</span>
+          <span class="dock-badge">Live</span>
+        </div>
+        <div class="dock-panel-body mixer-body">
+          <!-- Desktop Audio -->
+          <div class="mixer-channel">
+            <div class="channel-info">
+              <span class="channel-label">Desktop Audio</span>
+              <span class="channel-db" id="desktopDbLabel">-inf dB</span>
+            </div>
+            <div class="meter-fader-row">
+              <div class="obs-meter">
+                <div class="meter-bar" id="desktopMeterBar"></div>
+              </div>
+              <input type="range" class="obs-fader" id="desktopVolumeFader" min="0" max="1.5" step="0.05" value="1.0">
+            </div>
+            <div class="channel-controls">
+              <button class="obs-mute-btn" id="muteDesktopBtn">🔊</button>
+            </div>
+          </div>
+
+          <!-- Mic Audio -->
+          <div class="mixer-channel">
+            <div class="channel-info">
+              <span class="channel-label">Mic/Aux</span>
+              <span class="channel-db" id="micDbLabel">-inf dB</span>
+            </div>
+            <div class="meter-fader-row">
+              <div class="obs-meter">
+                <div class="meter-bar" id="micMeterBar"></div>
+              </div>
+              <input type="range" class="obs-fader" id="micVolumeFader" min="0" max="1.5" step="0.05" value="1.0">
+            </div>
+            <div class="channel-controls">
+              <button class="obs-mute-btn" id="muteMicBtn">🎙️</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. Controls Dock -->
+      <section class="dock-panel dock-controls">
+        <div class="dock-panel-header">
+          <span>Controls</span>
+        </div>
+        <div class="dock-panel-body controls-body">
+          <button class="obs-ctrl-btn btn-record-main" id="startRecBtn">
+            <span class="btn-rec-dot"></span>
+            <span id="startRecLabel">Start Recording</span>
+          </button>
+
+          <button class="obs-ctrl-btn" id="pauseRecBtn" style="display: none;">
+            <span id="pauseRecLabel">Pause</span>
+          </button>
+
+          <div class="ctrl-row">
+            <button class="obs-ctrl-btn" id="toggleScreenBtn">Select Screen</button>
+            <button class="obs-ctrl-btn" id="toggleWebcamBtn">Facecam On</button>
+          </div>
+
+          <div class="ctrl-row">
+            <button class="obs-ctrl-btn" id="openSettingsModalBtn">Settings</button>
+            <button class="obs-ctrl-btn" id="resetAllBtn">Reset</button>
+          </div>
+        </div>
+      </section>
+    </footer>
+
+    <!-- Bottom Status Bar -->
+    <div class="obs-statusbar">
+      <div class="status-left">
+        <span class="status-item status-rec" id="statusRecIndicator">
+          <span class="rec-dot"></span>
+          <span id="statusRecText">REC: 00:00:00</span>
+        </span>
+        <span class="status-item" id="statusFps">FPS: 30.00</span>
+        <span class="status-item" id="statusFormat">Format: High Quality</span>
+      </div>
+      <div class="status-right">
+        <span class="status-item" id="statusCamInfo">Camera: Ready</span>
+        <span class="status-item">⚡ 0% CPU Hardware Mode</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Settings Modal -->
+  <div class="obs-modal-backdrop" id="settingsModal" style="display: none;">
+    <div class="obs-modal">
+      <div class="obs-modal-header">
+        <h3>OBS Studio Settings</h3>
+        <button class="modal-close-btn" id="closeSettingsModal">&times;</button>
+      </div>
+      <div class="obs-modal-body">
+        
+        <div class="settings-group">
+          <h4>Video &amp; Performance Quality</h4>
+          <div class="form-row">
+            <label for="modalResolution">Canvas Resolution:</label>
+            <select id="modalResolution">
+              <option value="720p" selected>1280x720 (720p HD) - Super Fast &amp; Smooth</option>
+              <option value="1080p">1920x1080 (1080p Full HD)</option>
+            </select>
+          </div>
+
+          <div class="form-row">
+            <label for="modalFps">Recording Frame Rate:</label>
+            <select id="modalFps">
+              <option value="30" selected>30 FPS (Recommended - Zero Lag)</option>
+              <option value="60">60 FPS (Ultra Smooth)</option>
+            </select>
+          </div>
+
+          <div class="form-row">
+            <label for="modalFormat">Output Format:</label>
+            <select id="modalFormat">
+              <option value="video/webm;codecs=vp9,opus" selected>WebM VP9 (Universal &amp; 100% Reliable)</option>
+              <option value="video/mp4">MP4 (If supported by your Windows player)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <h4>Camera Selection</h4>
+          <div class="form-row">
+            <label for="modalCameraSelect">Select Camera:</label>
+            <select id="modalCameraSelect">
+              <option value="">Default Camera</option>
+            </select>
+          </div>
+        </div>
+
+      </div>
+      <div class="obs-modal-footer">
+        <button class="obs-btn obs-btn-primary" id="saveSettingsBtn">Apply &amp; Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Preview & Download Modal -->
+  <div class="obs-modal-backdrop" id="previewModal" style="display: none;">
+    <div class="obs-modal preview-modal-inner">
+      <div class="obs-modal-header">
+        <h3>🎉 Recording Finished - Preview &amp; Save</h3>
+        <button class="modal-close-btn" id="closePreviewModal">&times;</button>
+      </div>
+      <div class="obs-modal-body">
+        <div class="modal-video-box">
+          <video id="finishedVideoPlayer" controls autoplay playsinline></video>
+        </div>
+
+        <div class="video-stats-strip">
+          <div>Duration: <strong id="modalDuration">00:00:00</strong></div>
+          <div>Size: <strong id="modalSize">0.0 MB</strong></div>
+          <div>Format: <strong id="modalType">Video</strong></div>
+        </div>
+
+        <div class="form-row modal-save-row">
+          <label for="modalFileName">Save Video File Name:</label>
+          <input type="text" id="modalFileName" value="Screen_Recording">
+        </div>
+      </div>
+      <div class="obs-modal-footer">
+        <button class="obs-btn obs-btn-primary" id="modalDownloadBtn">
+          💾 Download Video
+        </button>
+        <button class="obs-btn obs-btn-secondary" id="modalCloseAndNewBtn">
+          Record New Video
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js?v=4.0"></script>
+</body>
+</html>
