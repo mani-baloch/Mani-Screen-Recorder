@@ -1,12 +1,10 @@
-{
+﻿{
   "name": "screen-studio-pro",
   "version": "1.0.0",
   "description": "High quality laptop screen recorder with audio and webcam support",
-  "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node local-server.js"
   },
   "keywords": ["screen-recorder", "webcam", "audio"],
-  "author": "",
   "license": "MIT"
 }

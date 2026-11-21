@@ -1,4 +1,4 @@
-@echo off
+﻿@echo off
 title Screen Studio Pro
 cd /d "%~dp0"
 
@@ -10,5 +10,5 @@ echo Opening your Screen Recorder in your browser...
 echo Keep this window open while recording.
 echo.
 
-node server.js
+node local-server.js
 pause
